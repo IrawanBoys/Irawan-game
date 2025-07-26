@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>IRAWAN GAME</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #2b3e50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px;
+    }
+
+    #game-title {
+      color: #ffffff;
+      font-size: 36px;
+      font-weight: bold;
+      margin: 10px 0;
+      text-shadow: 2px 2px #000;
+      text-align: center;
+    }
+
+    #top-score {
+      font-size: 40px;
+      color: white;
+      background: #1a237e;
+      padding: 10px 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px #00bcd4;
+      margin-bottom: 10px;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      100% { transform: scale(1); }
+    }
+
+    @keyframes flash {
+      0% { background: #ffffff; }
+      100% { background: #2196f3; }
+    }
+
+    #top-score.pop {
+      animation: pop 0.3s ease;
+    }
+
+    h1 {
+      color: #00e5ff;
+      font-size: 24px;
+      text-shadow: 2px 2px #000;
+      text-align: center;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(10, minmax(20px, 1fr));
+      grid-template-rows: repeat(10, minmax(20px, 1fr));
+      gap: 2px;
+      background: #1a1a1a;
+      width: 95vmin;
+      max-width: 320px;
+      aspect-ratio: 1 / 1;
+      margin: 10px 0;
+    }
+
+    .cell {
+      background: #000c18;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+    }
+
+    .filled {
+      background: #2196f3;
+    }
+
+    .flash {
+      animation: flash 0.2s;
+    }
+
+    .pieces {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .piece {
+      display: grid;
+      gap: 2px;
+    }
+
+    .block {
+      width: 25px;
+      height: 25px;
+      background: #1976d2;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: #00bcd4;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    button:hover {
+      background: #008ba3;
+    }
+
+    #game-over {
+      font-size: 32px;
+      color: red;
+      font-weight: bold;
+      display: none;
+      text-shadow: 2px 2px black;
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2 id="game-title">IRAWAN GAME</h2>
+  <div id="top-score">0</div>
+  <h1 id="score">Score: 0</h1>
+  <button onclick="resetGame()">Reset Game</button>
+  <div id="game-over">GAME OVER</div>
+
+  <div class="board" id="board"></div>
+
+  <div class="pieces">
+    <!-- Square -->
+    <div class="piece" draggable="true" ondragstart="drag(event)" data-shape="square" style="grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr);">
+      <div class="block"></div><div class="block"></div>
+      <div class="block"></div><div class="block"></div>
+    </div>
+
+    <!-- Line -->
+    <div class="piece" draggable="true" ondragstart="drag(event)" data-shape="line" style="grid-template-columns: repeat(4, 1fr);">
+      <div class="block"></div><div class="block"></div><div class="block"></div><div class="block"></div>
+    </div>
+
+    <!-- L-shape -->
+    <div class="piece" draggable="true" ondragstart="drag(event)" data-shape="L" style="grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(3, 1fr);">
+      <div class="block"></div><div class="block"></div>
+      <div class="block"></div><div></div>
+      <div class="block"></div><div></div>
+    </div>
+
+    <!-- T-shape -->
+    <div class="piece" draggable="true" ondragstart="drag(event)" data-shape="T" style="grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr);">
+      <div class="block"></div><div class="block"></div><div class="block"></div>
+      <div></div><div class="block"></div><div></div>
+    </div>
+  </div>
+
+  <script>
+    const board = document.getElementById("board");
+    const scoreDisplay = document.getElementById("score");
+    const topScore = document.getElementById("top-score");
+    const gameOverMsg = document.getElementById("game-over");
+
+    let score = 0;
+    let gameOver = false;
+    const cells = [];
+
+    // Buat board
+    for (let i = 0; i < 100; i++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.dataset.index = i;
+      cell.ondragover = (e) => e.preventDefault();
+      cell.ondrop = (e) => drop(e, i);
+      board.appendChild(cell);
+      cells.push(cell);
+    }
+
+    function drag(e) {
+      if (gameOver) return;
+      e.dataTransfer.setData("shape", e.target.dataset.shape);
+    }
+
+    function drop(e, index) {
+      if (gameOver) return;
+      const shape = e.dataTransfer.getData("shape");
+
+      let positions = [];
+
+      const row = Math.floor(index / 10);
+      const col = index % 10;
+
+      if (shape === "square" && row <= 8 && col <= 8) {
+        positions = [index, index + 1, index + 10, index + 11];
+      } else if (shape === "line" && col <= 6) {
+        positions = [index, index + 1, index + 2, index + 3];
+      } else if (shape === "L" && row <= 7 && col <= 9) {
+        positions = [index, index + 10, index + 20, index + 21];
+      } else if (shape === "T" && row <= 8 && col >= 1 && col <= 8) {
+        positions = [index - 1, index, index + 1, index + 10];
+      }
+
+      if (positions.length > 0 && positions.every(i => !cells[i]?.classList.contains("filled"))) {
+        positions.forEach(i => cells[i].classList.add("filled"));
+        updateScore(10);
+        checkLines();
+        setTimeout(checkGameOver, 200);
+      }
+    }
+
+    function updateScore(amount) {
+      score += amount;
+      scoreDisplay.innerText = "Score: " + score;
+      topScore.innerText = score;
+      topScore.classList.add("pop");
+      setTimeout(() => topScore.classList.remove("pop"), 300);
+    }
+
+    function checkLines() {
+      for (let row = 0; row < 10; row++) {
+        const start = row * 10;
+        const rowCells = cells.slice(start, start + 10);
+        if (rowCells.every(c => c.classList.contains("filled"))) {
+          rowCells.forEach(c => {
+            c.classList.add("flash");
+            setTimeout(() => {
+              c.classList.remove("flash");
+              c.classList.remove("filled");
+            }, 200);
+          });
+          updateScore(100);
+        }
+      }
+
+      for (let col = 0; col < 10; col++) {
+        const colCells = [];
+        for (let row = 0; row < 10; row++) {
+          colCells.push(cells[row * 10 + col]);
+        }
+        if (colCells.every(c => c.classList.contains("filled"))) {
+          colCells.forEach(c => {
+            c.classList.add("flash");
+            setTimeout(() => {
+              c.classList.remove("flash");
+              c.classList.remove("filled");
+            }, 200);
+          });
+          updateScore(100);
+        }
+      }
+    }
+
+    function checkGameOver() {
+      let canPlace = false;
+
+      for (let i = 0; i < 100; i++) {
+        const row = Math.floor(i / 10);
+        const col = i % 10;
+
+        const tests = [
+          [i, i + 1, i + 10, i + 11], // square
+          [i, i + 1, i + 2, i + 3],   // line
+          [i, i + 10, i + 20, i + 21],// L
+          [i - 1, i, i + 1, i + 10],  // T
+        ];
+
+        for (const shape of tests) {
+          if (shape.every(j => j < 100 && j >= 0 && !cells[j]?.classList.contains("filled"))) {
+            canPlace = true;
+            break;
+          }
+        }
+        if (canPlace) break;
+      }
+
+      if (!canPlace) {
+        gameOver = true;
+        gameOverMsg.style.display = "block";
+      }
+    }
+
+    function resetGame() {
+      cells.forEach(cell => cell.classList.remove("filled", "flash"));
+      score = 0;
+      gameOver = false;
+      scoreDisplay.innerText = "Score: 0";
+      topScore.innerText = "0";
+      gameOverMsg.style.display = "none";
+    }
+  </script>
+</body>
+</html>
